@@ -1,0 +1,76 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum FormType {
+  SURVEY
+  REVIEW
+  SUGGESTION
+}
+
+enum FormChannel {
+  POPUP
+  EMAIL
+}
+
+enum FormStatus {
+  DRAFT
+  PAUSED
+  ACTIVE
+  ARCHIVED
+}
+
+model Form {
+  id             String        @id @default(cuid())
+  orgId          String
+  name           String
+  description    String?
+  type           FormType      @default(SURVEY)
+  status         FormStatus    @default(DRAFT)
+  versions       FormVersion[]
+  activeVersion  Int           @default(1)
+  activeChannels FormChannel[] @default([])
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  isDeleted      Boolean       @default(false)
+  responses      Response[]
+
+  @@index([orgId])
+  @@index([name, orgId])
+  @@index([type, orgId])
+  @@index([status])
+}
+
+model FormVersion {
+  id        String     @id @default(cuid())
+  formId    String
+  form      Form       @relation(fields: [formId], references: [id], onDelete: Cascade)
+  version   Int
+  schema    Json
+  createdAt DateTime   @default(now())
+  responses Response[]
+
+  @@unique([formId, version])
+  @@index([formId, version])
+}
+
+model Response {
+  id            String      @id @default(cuid())
+  orgId         String
+  formId        String
+  userId        String?
+  formVersionId String
+  formVersion   FormVersion @relation(fields: [formVersionId], references: [id], onDelete: Cascade)
+  form          Form        @relation(fields: [formId], references: [id], onDelete: Cascade)
+  data          Json
+  createdAt     DateTime    @default(now())
+
+  @@index([orgId, formId])
+  @@index([userId, orgId])
+  @@index([createdAt, orgId])
+}
